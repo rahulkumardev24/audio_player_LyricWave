@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:lottie/lottie.dart';
+import 'package:marquee/marquee.dart';
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen({super.key});
@@ -24,15 +28,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
   /// according to you requirement
 
   List<String> songList = [
+    "assets/music/tere-liye-song-with-lyrics-veer-zaara-shah-rukh-khan-preity-zinta-javed-akhtar-madan-mohan-128-ytshorts.savetube.me.mp3",
     "assets/music/music 1.m4a",
+    "assets/music/videoplayback (1).m4a",
+    "assets/music/videoplayback (1).m4a",
+    "assets/music/samjhawan-lyric-video-humpty-sharma-ki-dulhania-varun-alia-arijit-singh-shreya-ghoshal-128-ytshorts.savetube.me.mp3",
     "assets/music/kisi-se-tum-pyar-karo-kisii-se-tum-pyaar-kro-andaaz.mp3",
+    "assets/music/dhadhang-dhang-full-video-rowdy-rathore-akshay-sonakshi-shreya-ghoshal-sajid-wajid-128-ytshorts.savetube.me.mp3" ,
     "assets/music/ikko-mikke-sanu-ajkal-sheesha-bada-ched.mp3",
+    "assets/music/aaj-se-teri-lyrical-padman-akshay-kumar-radhika-apte-arijit-singh-amit-trivedi-128-ytshorts.savetube.me.mp3",
+    "assets/music/sanam re .mp3"
   ];
 
-  final AudioPlayer audioPlayer = AudioPlayer() ;
+  final AudioPlayer audioPlayer = AudioPlayer();
 
   /// current song
-  int currentSong = 0 ;
+  int currentSong = 0;
 
   /// here we create function for play music
   Future<void> myAudioPlay() async {
@@ -50,7 +61,98 @@ class _PlayerScreenState extends State<PlayerScreen> {
     });
   }
 
+  /// HERE WE CREATE FUNCTION FOR NEXT SONG
 
+  Future<void> nextSong() async {
+    if (isSuf) {
+      /// Generate a random song index that is different from the current song
+      /// know check the nextSong function all error is solve
+      final random = Random();
+      int newIndex;
+      do {
+        newIndex = random.nextInt(songList.length);
+      } while (newIndex == currentSong);
+
+      currentSong = newIndex;
+    } else {
+      /// Sequentially play the next song
+      currentSong = (currentSong + 1) % songList.length;
+    }
+    final String audioPath = songList[currentSong];
+    await audioPlayer.setAsset(audioPath);
+    await audioPlayer.play();
+
+    setState(() {
+      isPlaying = true;
+    });
+  }
+
+  /// HERE WE CREATE FUNCTION FOR PREVIOUS SONG
+  Future<void> previousSong() async {
+    setState(() {
+      currentSong = (currentSong - 1 + songList.length) % songList.length;
+    });
+
+    final String audioPath = songList[currentSong];
+    await audioPlayer.setAsset(audioPath);
+    await audioPlayer.play();
+    setState(() {
+      isPlaying = true;
+    });
+  }
+
+  /// HERE WE CREATE FUNCTION FOR SEEK BAR
+
+  Future<void> seekChange(double second) async {
+    await audioPlayer.seek(Duration(seconds: second.toInt()));
+  }
+
+  /// according to time seekbar move
+  late StreamSubscription<Duration> positionSubscription;
+  late StreamSubscription<Duration?> durationSubscription;
+  Duration currentPosition = Duration.zero;
+  Duration totalDuration = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+
+    /// CHECK THIS AND CORRECT
+    positionSubscription = audioPlayer.positionStream.listen((position) {
+      setState(() {
+        currentPosition = position;
+        sliderValue = currentPosition.inSeconds.toDouble();
+      });
+    });
+
+    durationSubscription = audioPlayer.durationStream.listen((duration) {
+      setState(() {
+        totalDuration = duration ?? Duration.zero;
+      });
+    });
+
+    /// here we write code for go to next song automatic when song is end
+    audioPlayer.playerStateStream.listen((state) {
+      if (state.processingState == ProcessingState.completed) {
+        nextSong();
+      } else if (state.playing) {
+        setState(() {
+          isPlaying = true;
+        });
+      } else {
+        setState(() {
+          isPlaying = false;
+        });
+      }
+    });
+  }
+
+  /// HERE WE CREATE FUNCTION FOR DURATION TIME SHOW
+  String formatDuration(Duration duration) {
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final second = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return "$minutes:$second";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +211,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
                               /// Music List show here
                               child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
                                   const Text(
                                     "Music List",
@@ -130,6 +233,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                           itemCount: songList.length,
                                           itemBuilder: (context, index) {
                                             return ListTile(
+                                              onTap: () async {
+                                                setState(() {
+                                                  currentSong = index;
+                                                });
+
+                                                final String audioPath =
+                                                    songList[currentSong];
+                                                await audioPlayer
+                                                    .setAsset(audioPath);
+                                                await audioPlayer.play();
+
+                                                Navigator.of(context).pop();
+                                                setState(() {
+                                                  isPlaying = true;
+                                                });
+                                              },
                                               title: Text(
                                                 maxLines: 1,
                                                 songList[index].split('/').last,
@@ -159,12 +278,22 @@ class _PlayerScreenState extends State<PlayerScreen> {
             ),
 
             const SizedBox(
-              height: 10,
+              height: 20,
             ),
 
-            const Text(
-              "Music name show here",
-              style: TextStyle(fontSize: 25, fontFamily: "primary"),
+            /// MUSIC NAME SHOW SHARE
+            SizedBox(
+              height: 30,
+              child: Marquee(
+                blankSpace: 50,
+                startPadding: 10,
+                velocity: 30,
+                style: const TextStyle(
+                  fontSize: 25,
+                  fontFamily: "primary",
+                ),
+                text: songList[currentSong].split('/').last,
+              ),
             ),
 
             const Spacer(),
@@ -224,6 +353,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         InkWell(
                           onTap: () {
                             isRepeat = !isRepeat;
+                            audioPlayer.setLoopMode(
+                                isRepeat ? LoopMode.one : LoopMode.off);
+
                             setState(() {});
                           },
                           child: isRepeat
@@ -239,7 +371,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                     ),
                                   ),
                                 )
-                               : Padding(
+                              : Padding(
                                   padding: const EdgeInsets.all(2.0),
                                   child: Image.asset(
                                     "assets/icons/rotate.png",
@@ -254,30 +386,38 @@ class _PlayerScreenState extends State<PlayerScreen> {
                   /// ------------------------ slider ---------------------------///
                   Slider(
                       value: sliderValue,
-                      min: 0,
-                      divisions: 100,
-                      max: 100,
+                      min: 0.0,
+                      max: totalDuration.inSeconds > 0
+                          ? totalDuration.inSeconds.toDouble()
+                          : 1.0,
                       activeColor: Colors.redAccent,
                       inactiveColor: Colors.black38,
                       autofocus: true,
                       onChanged: (value) {
                         setState(() {
                           sliderValue = value;
+
+                          /// here we call seekChange function
+                          seekChange(value);
                         });
                       }),
 
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 22.0),
+                  /// DURATION SHOW HERE
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 22.0),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        /// HERE WE CALL FORMAT DURATION
                         Text(
-                          "0.00",
-                          style: TextStyle(fontSize: 18, fontFamily: "primary"),
+                          formatDuration(currentPosition),
+                          style: const TextStyle(
+                              fontSize: 18, fontFamily: "primary"),
                         ),
                         Text(
-                          "5.00",
-                          style: TextStyle(fontSize: 18, fontFamily: "primary"),
+                          formatDuration(totalDuration),
+                          style: const TextStyle(
+                              fontSize: 18, fontFamily: "primary"),
                         ),
                       ],
                     ),
@@ -293,7 +433,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
                     children: [
                       /// -------------------- BACK BUTTON ------------------------///
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          /// HERE WE CALL THIS PREVIOUS SONG FUNCTION
+                          previousSong();
+                        },
                         icon: Image.asset(
                           "assets/icons/left-arrow.png",
                           height: 50,
@@ -309,10 +452,9 @@ class _PlayerScreenState extends State<PlayerScreen> {
                             /// here we call myAudioPlayer function
                             myAudioPlay();
                             setState(() {
-                              isPlaying = !isPlaying ;
+                              isPlaying = !isPlaying;
                             });
                           },
-
                           icon: isPlaying
                               ? Image.asset(
                                   "assets/icons/pause.png",
@@ -327,7 +469,10 @@ class _PlayerScreenState extends State<PlayerScreen> {
 
                       /// ---------------------------------------NEXT BUTTON ----------------------------------------///
                       IconButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          /// here we call nextSong function
+                          nextSong();
+                        },
                         icon: Image.asset(
                           "assets/icons/right-arrow.png",
                           height: 50,
@@ -354,4 +499,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
 /// sufficing  and repeat toggling  => Start ,
 /// MUSIC list show in bottom navigation , => Start , END
 /// MUSIC PLAY => START ,  is it working ===> Working successfully  , FINAL CHECK PLAY AND PAUSE  => Done
-
+/// NEXT SONG => fUNCTION CREATE => DONE , WORK SUCCESSFULLY
+/// BACK SONG => function CREATE => DONE , WORK SUCCESSFULLY
+/// SEEK BAR OPERATION => DONE ,
+/// CURRENT SONG NAME SHOW => DONE
+/// Long song name is automatic scrolling => DONE
+/// SEEK BAR MOVE ACCORDING TO TIME AND MUSIC DURATION SHOW  => DONE
+/// play song when click on list of song => DONE , CHECK
+/// WHEN SONG IS END THEN GO TO NEXT SONG => DONE ,
+/// Repeat operation => DONE ,
+/// SUFFERING OPERATION =>  DONE ,
+/// WE ADD MORE SONG => CHECK COMPLETE CODE
+/// FINAL CHECK
+/// THANKS
+/// source code in description box ========//////////////////////
+/// =---------------------------------------THANKS ALL OF YOU ----------------------------------------------=//////

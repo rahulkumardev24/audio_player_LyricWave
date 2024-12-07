@@ -41,6 +41,8 @@ dependencies:
   just_audio: ^0.9.42
 #  Loading lottie animation
   lottie: ^3.1.3
+#  automatic long text scrolling
+  marquee: ^2.3.0
 
 dev_dependencies:
   flutter_test:
