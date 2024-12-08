@@ -16,3 +16,5 @@ For help getting started with Flutter development, view the
 samples, guidance on mobile development, and a full API reference.
 
 <img src="https://github.com/rahulkumardev24/audio_player_LyricWave/blob/master/Screenshot_20241207_213732.png" height = 500/>
+
+<img src = "https://github.com/rahulkumardev24/audio_player_LyricWave/blob/master/Screenshot_20241207_213732.png" height = 500 /> 
